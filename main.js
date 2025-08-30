@@ -27,7 +27,7 @@ const state = {
   basketY: 0,
   basketW: 110,
   basketH: 24,
-  apples: [],
+  apples: [], // now generic: items can be apple or bomb
   spawnInterval: 1200,
   lastSpawn: 0,
   appleBaseSpeed: 160,
@@ -36,6 +36,9 @@ const state = {
   tiltZero: 0, // calibration offset
   tiltAlpha: 0.12, // smoothing
   smoothedTilt: 0,
+  bombChance: 0.3, // 30% chance a spawn is a bomb
+  basketFlashColor: null,
+  basketFlashUntil: 0,
 };
 
 // Resize canvas to full screen with DPR scaling
@@ -71,13 +74,14 @@ function endGame() {
 }
 
 // Apple object helper
-function spawnApple() {
+function spawnDrop() {
   const size = 26 + Math.random() * 10; // px
   const x = Math.random() * (canvas.clientWidth - size);
   const y = -size - 10;
   const speed = state.appleBaseSpeed + Math.random() * 80;
   const spin = (Math.random() * 2 - 1) * 0.05;
-  state.apples.push({ x, y, size, speed, spin, rot: 0 });
+  const type = Math.random() < state.bombChance ? 'bomb' : 'apple';
+  state.apples.push({ type, x, y, size, speed, spin, rot: 0 });
 }
 
 // Input handling
@@ -174,7 +178,7 @@ function updateApples(dt) {
   state.appleBaseSpeed = 160 + Math.min(360, state.score * 3);
 
   if (performance.now() - state.lastSpawn > state.spawnInterval) {
-    spawnApple();
+    spawnDrop();
     state.lastSpawn = performance.now();
   }
   for (const a of state.apples) {
@@ -190,15 +194,26 @@ function updateApples(dt) {
     const hit = ax >= basket.x && ax <= basket.x + basket.w &&
                 ay >= basket.y && ay <= basket.y + basket.h + 6;
     if (hit) {
-      state.score += 1;
-      hudScore.textContent = state.score.toString();
-      continue; // remove
+      if (a.type === 'apple') {
+        state.score += 1;
+        hudScore.textContent = state.score.toString();
+      } else if (a.type === 'bomb') {
+        // bomb penalty
+        state.lives -= 1;
+        hudLives.textContent = Math.max(state.lives, 0).toString();
+        flashBasket('#ff6b6b');
+        if (state.lives <= 0) { endGame(); }
+      }
+      continue; // remove after catch
     }
     if (a.y > canvas.clientHeight + 60) {
-      state.lives -= 1;
-      hudLives.textContent = Math.max(state.lives, 0).toString();
-      if (state.lives <= 0) endGame();
-      continue;
+      // Only penalize for missed apples; bombs falling off are safe
+      if (a.type === 'apple') {
+        state.lives -= 1;
+        hudLives.textContent = Math.max(state.lives, 0).toString();
+        if (state.lives <= 0) endGame();
+      }
+      continue; // drop removed
     }
     kept.push(a);
   }
@@ -211,13 +226,18 @@ function draw() {
   // Background stars
   ctx.fillStyle = '#0d1022';
   ctx.fillRect(0, 0, w, h);
-  // Basket
-  ctx.fillStyle = '#7cffb2';
+  // Basket (flash red when hit by bomb)
+  const now = performance.now();
+  const basketColor = now < state.basketFlashUntil && state.basketFlashColor ? state.basketFlashColor : '#7cffb2';
+  ctx.fillStyle = basketColor;
   const r = 8;
   roundRect(ctx, state.basketX, state.basketY, state.basketW, state.basketH, r);
   ctx.fill();
   // Apples
-  for (const a of state.apples) drawApple(a);
+  for (const a of state.apples) {
+    if (a.type === 'apple') drawApple(a);
+    else drawBomb(a);
+  }
 }
 
 function drawApple(a) {
@@ -248,6 +268,36 @@ function drawApple(a) {
   ctx.lineTo(0, -size * 0.34);
   ctx.stroke();
   ctx.restore();
+}
+
+function drawBomb(a) {
+  const { x, y, size } = a;
+  ctx.save();
+  ctx.translate(x + size / 2, y + size / 2);
+  ctx.rotate(a.rot);
+  // body: dark grey
+  ctx.fillStyle = '#2a2f3a';
+  ctx.beginPath();
+  ctx.arc(0, 4, size * 0.38, 0, Math.PI * 2);
+  ctx.fill();
+  // fuse
+  ctx.strokeStyle = '#5a3a1b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.2);
+  ctx.quadraticCurveTo(size * 0.12, -size * 0.34, size * 0.2, -size * 0.42);
+  ctx.stroke();
+  // spark
+  ctx.fillStyle = '#ffcc66';
+  ctx.beginPath();
+  ctx.arc(size * 0.22, -size * 0.44, size * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function flashBasket(color = '#ff6b6b', duration = 220) {
+  state.basketFlashColor = color;
+  state.basketFlashUntil = performance.now() + duration;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
