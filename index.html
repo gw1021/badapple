@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <title>Tilt Catch: Apple</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game"></canvas>
+
+      <div id="hud">
+        <div class="score">점수: <span id="score">0</span></div>
+        <div class="lives">목숨: <span id="lives">3</span></div>
+      </div>
+
+      <div id="overlay" class="overlay visible">
+        <div class="panel">
+          <h1>사과 받아먹기</h1>
+          <p>휴대폰을 좌우로 기울여 바구니를 움직이세요.</p>
+          <button id="startBtn">시작하기</button>
+          <button id="touchModeBtn" class="ghost">터치 조작으로 시작</button>
+          <p class="hint">iOS는 센서 권한이 필요합니다. 시작하기를 누르면 권한을 요청해요.</p>
+        </div>
+      </div>
+
+      <div id="gameover" class="overlay">
+        <div class="panel">
+          <h2>게임 오버</h2>
+          <p>최종 점수: <span id="finalScore">0</span></p>
+          <button id="restartBtn">다시하기</button>
+          <button id="calibrateBtn" class="ghost">수평 재보정</button>
+        </div>
+      </div>
+
+      <div id="touchGuide" class="touch-guide hidden">화면을 좌우로 드래그해서 이동</div>
+    </main>
+
+    <script src="./main.js" type="module"></script>
+  </body>
+  </html>
